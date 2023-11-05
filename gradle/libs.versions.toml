@@ -26,6 +26,7 @@ composeLiveData = "1.5.4"
 systemuicontroller = "0.32.0"
 composeConstraintLayout = "1.0.1"
 javaVersion = "17"
+org-jetbrains-kotlin-jvm190 = "1.9.0"
 
 [libraries]
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }
@@ -52,6 +53,8 @@ androidx-compose-livedata = { group = "androidx.compose.runtime", name = "runtim
 [plugins]
 com-android-application = { id = "com.android.application", version.ref = "agp" }
 org-jetbrains-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "org-jetbrains-kotlin-android" }
+org-jetbrains-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "org-jetbrains-kotlin-jvm190" }
+com-android-library = { id = "com.android.library", version.ref = "agp" }
 
 [bundles]
 

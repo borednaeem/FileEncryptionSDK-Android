@@ -4,6 +4,7 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.TextView
 import com.example.fileencryptor.databinding.ActivityMainBinding
+import com.example.fileencryptor.encryptionlib.NativeLib
 
 class MainActivity : AppCompatActivity() {
 
@@ -16,13 +17,13 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         // Example of a call to a native method
-        binding.sampleText.text = stringFromJNI()
+        binding.sampleText.text = NativeLib().stringFromJNI()//stringFromJNI()
     }
 
-    /**
+/*    *//**
      * A native method that is implemented by the 'fileencryptor' native library,
      * which is packaged with this application.
-     */
+     *//*
     external fun stringFromJNI(): String
 
     companion object {
@@ -30,5 +31,5 @@ class MainActivity : AppCompatActivity() {
         init {
             System.loadLibrary("fileencryptor")
         }
-    }
+    }*/
 }
