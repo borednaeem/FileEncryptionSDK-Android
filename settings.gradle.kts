@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "FileEncryptor"
 include(":app")
- 
+include(":encryptionlib")
