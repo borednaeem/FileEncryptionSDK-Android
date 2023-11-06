@@ -12,6 +12,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.FileEncryptor"
         tools:targetApi="31">
+        android:name=".EncryptorApp">
         <activity
             android:name=".MainActivity"
             android:exported="true">
