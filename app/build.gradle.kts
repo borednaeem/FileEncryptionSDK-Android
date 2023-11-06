@@ -20,6 +20,8 @@ android {
         ndk {
             abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a"))
         }
+
+        multiDexEnabled = true
     }
 
     buildTypes {
@@ -54,4 +56,7 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.espresso.core)
+
+    implementation("androidx.multidex:multidex:2.0.1")
+
 }
