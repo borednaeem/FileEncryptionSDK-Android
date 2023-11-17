@@ -5,14 +5,29 @@
 #include <openssl/evp.h>
 #include <openssl/aes.h>
 #include <android/log.h>
+#include <fstream>
+#include "vector"
+#include "openssl/err.h"
+#include "crypto/evp.h"
+#include <android/file_descriptor_jni.h>
+#include "unistd.h"
+#include "filesystem"
 
 #define APPNAME "FileEncryptor"
 
+const int RESULT_ERROR = 1;
+const int RESULT_SUCCESS = 0;
 
-/**
- * Create a 256 bit key and IV using the supplied key_data. salt can be added for taste.
- * Fills in the encryption and decryption ctx objects and returns 0 on success
- **/
+const char *const ALGO_AES = "AES";
+const char *const ALGO_TRIPLE_DES = "TripleDES";
+const char *const ALGO_BLOWFISH = "Blowfish";
+const char *const ALGO_CAMELLIA = "Camellia";
+
+const char *const MODE_CBC = "CBC";
+const char *const MODE_ECB = "ECB";
+const char *const MODE_OFB = "OFB";
+const char *const MODE_CFB = "CFB";
+
 int aes_init(unsigned char *key_data, int key_data_len, unsigned char *salt, EVP_CIPHER_CTX *e_ctx,
              EVP_CIPHER_CTX *d_ctx) {
     int i, nrounds = 5;
@@ -38,101 +53,6 @@ int aes_init(unsigned char *key_data, int key_data_len, unsigned char *salt, EVP
     return 0;
 }
 
-/*
- * Encrypt *len bytes of data
- * All data going in & out is considered binary (unsigned char[])
- *//*
-unsigned char *aes_encrypt(EVP_CIPHER_CTX *e, unsigned char *plaintext, int *len) {
-    *//* max ciphertext len for a n bytes of plaintext is n + AES_BLOCK_SIZE -1 bytes *//*
-    int c_len = *len + AES_BLOCK_SIZE, f_len = 0;
-    unsigned char *ciphertext = malloc(c_len);
-
-    *//* allows reusing of 'e' for multiple encryption cycles *//*
-    EVP_EncryptInit_ex(e, NULL, NULL, NULL, NULL);
-
-    *//* update ciphertext, c_len is filled with the length of ciphertext generated,
-      *len is the size of plaintext in bytes *//*
-    EVP_EncryptUpdate(e, ciphertext, &c_len, plaintext, *len);
-
-    *//* update ciphertext with the final remaining bytes *//*
-    EVP_EncryptFinal_ex(e, ciphertext + c_len, &f_len);
-
-    *len = c_len + f_len;
-    return ciphertext;
-}*/
-
-/*
- * Decrypt *len bytes of ciphertext
- */
-/*unsigned char *aes_decrypt(EVP_CIPHER_CTX *e, unsigned char *ciphertext, int *len) {
-    *//* plaintext will always be equal to or lesser than length of ciphertext*//*
-    int p_len = *len, f_len = 0;
-    unsigned char *plaintext = malloc(p_len);
-
-    EVP_DecryptInit_ex(e, NULL, NULL, NULL, NULL);
-    EVP_DecryptUpdate(e, plaintext, &p_len, ciphertext, *len);
-    EVP_DecryptFinal_ex(e, plaintext + p_len, &f_len);
-
-    *len = p_len + f_len;
-    return plaintext;
-}*/
-/*
-int main(int argc, char **argv) {
-    *//* "opaque" encryption, decryption ctx structures that libcrypto uses to record
-       status of enc/dec operations *//*
-    EVP_CIPHER_CTX *en = EVP_CIPHER_CTX_new();
-    EVP_CIPHER_CTX *de = EVP_CIPHER_CTX_new();
-
-    *//* 8 bytes to salt the key_data during key generation. This is an example of
-       compiled in salt. We just read the bit pattern created by these two 4 byte
-       integers on the stack as 64 bits of contigous salt material -
-       ofcourse this only works if sizeof(int) >= 4 *//*
-    unsigned int salt[] = {12345, 54321};
-    unsigned char *key_data;
-    int key_data_len, i;
-    char *input[] = {"a", "abcd", "this is a test", "this is a bigger test",
-                     "\nWho are you ?\nI am the 'Doctor'.\n'Doctor' who ?\nPrecisely!",
-                     NULL};
-
-    *//* the key_data is read from the argument list *//*
-    key_data = (unsigned char *) argv[1];
-    key_data_len = strlen(argv[1]);
-
-    *//* gen key and iv. init the cipher ctx object *//*
-    if (aes_init(key_data, key_data_len, (unsigned char *) &salt, en, de)) {
-        printf("Couldn't initialize AES cipher\n");
-        return -1;
-    }
-
-    *//* encrypt and decrypt each input string and compare with the original *//*
-    for (i = 0; input[i]; i++) {
-        char *plaintext;
-        unsigned char *ciphertext;
-        int olen, len;
-
-        *//* The enc/dec functions deal with binary data and not C strings. strlen() will
-           return length of the string without counting the '\0' string marker. We always
-           pass in the marker byte to the encrypt/decrypt functions so that after decryption
-           we end up with a legal C string *//*
-        olen = len = strlen(input[i]) + 1;
-
-        ciphertext = aes_encrypt(en, (unsigned char *) input[i], &len);
-        plaintext = (char *) aes_decrypt(de, ciphertext, &len);
-
-        if (strncmp(plaintext, input[i], olen))
-            printf("FAIL: enc/dec failed for \"%s\"\n", input[i]);
-        else
-            printf("OK: enc/dec ok for \"%s\"\n", plaintext);
-
-        free(ciphertext);
-        free(plaintext);
-    }
-
-    EVP_CIPHER_CTX_free(en);
-    EVP_CIPHER_CTX_free(de);
-
-    return 0;
-}*/
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_example_fileencryptor_encryptionlib_NativeLib_stringFromJNI(
@@ -154,24 +74,26 @@ Java_com_example_fileencryptor_encryptionlib_NativeLib_initOpenSSL(JNIEnv *env, 
     int ciphertext_len;
 
     /* A 256 bit key */
-    unsigned char key[] = { 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+    unsigned char key[] = {0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
                            0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35,
                            0x36, 0x37, 0x38, 0x39, 0x30, 0x31, 0x32, 0x33,
                            0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x30, 0x31
     };
 
     /* A 128 bit IV */
-    unsigned char iv[] = { 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+    unsigned char iv[] = {0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
                           0x38, 0x39, 0x30, 0x31, 0x32, 0x33, 0x34, 0x35
     };
 
     /* Create and initialise the context */
-    if(!(evpEncCtx = EVP_CIPHER_CTX_new())) {
-        __android_log_print(ANDROID_LOG_ERROR, APPNAME, "Cannot init OpenSSL, Encryption context is null");
+    if (!(evpEncCtx = EVP_CIPHER_CTX_new())) {
+        __android_log_print(ANDROID_LOG_ERROR, APPNAME,
+                            "Cannot init OpenSSL, Encryption context is null");
         return;
     }
-    if(!(evpDecCtx = EVP_CIPHER_CTX_new())) {
-        __android_log_print(ANDROID_LOG_ERROR, APPNAME, "Cannot init OpenSSL, Decryption context is null");
+    if (!(evpDecCtx = EVP_CIPHER_CTX_new())) {
+        __android_log_print(ANDROID_LOG_ERROR, APPNAME,
+                            "Cannot init OpenSSL, Decryption context is null");
         return;
     }
 
@@ -181,8 +103,228 @@ Java_com_example_fileencryptor_encryptionlib_NativeLib_initOpenSSL(JNIEnv *env, 
             iv,
             evpEncCtx,
             evpDecCtx
-            );
+    );
 
     __android_log_print(ANDROID_LOG_VERBOSE, APPNAME, "OpenSSL is initialized successfully");
 }
 
+int open_input_file(std::ifstream &file, const std::string &file_path) {
+    __android_log_print(ANDROID_LOG_VERBOSE, APPNAME, "Opening file to encrypt...");
+    file = std::ifstream(file_path);
+    if (!file.is_open()) {
+        __android_log_print(ANDROID_LOG_ERROR, APPNAME, "Could not open file with path: %s", file_path.c_str());
+        return RESULT_ERROR;
+    } else {
+        __android_log_print(ANDROID_LOG_DEBUG, APPNAME, "File is opened");
+        return RESULT_SUCCESS;
+    }
+}
+
+int open_output_file(std::ofstream &file, const std::string &file_path) {
+    __android_log_print(ANDROID_LOG_VERBOSE, APPNAME, "Opening file to encrypt...");
+    file = std::ofstream(file_path);
+    if (!file.is_open()) {
+        __android_log_print(ANDROID_LOG_ERROR, APPNAME, "Could not open file");
+        return RESULT_ERROR;
+    } else {
+        __android_log_print(ANDROID_LOG_DEBUG, APPNAME, "File is opened");
+        return RESULT_SUCCESS;
+    }
+}
+
+struct CipherInfo {
+    const EVP_CIPHER *evp_cipher;
+    const EVP_MD *evp_md;
+    int16_t key_len_bytes;
+    int16_t cipher_block_size;
+};
+
+int get_cipher_info(
+        const unsigned char *algorithm,
+        const unsigned char *mode,
+        CipherInfo *info
+) {
+    info->cipher_block_size = 128;
+    if (std::strcmp(reinterpret_cast<const char *>(algorithm), ALGO_AES) == 0) {
+        info->key_len_bytes = 32;
+        info->evp_md = EVP_sha1();
+        if (std::strcmp(reinterpret_cast<const char *>(mode), MODE_CBC) == 0) {
+            info->evp_cipher = EVP_aes_256_cbc();
+        } else if (std::strcmp(reinterpret_cast<const char *>(mode), MODE_CFB) == 0) {
+            info->evp_cipher = EVP_aes_256_cfb128();
+        } else if (std::strcmp(reinterpret_cast<const char *>(mode), MODE_ECB) == 0) {
+            info->evp_cipher = EVP_aes_256_ecb();
+        } else if (std::strcmp(reinterpret_cast<const char *>(mode), MODE_OFB) == 0) {
+            info->evp_cipher = EVP_aes_256_ofb();
+        }
+    } else if (std::strcmp(reinterpret_cast<const char *>(algorithm), ALGO_BLOWFISH) == 0) {
+        info->key_len_bytes = 32;
+        info->evp_md = EVP_sha1();
+        if (std::strcmp(reinterpret_cast<const char *>(mode), MODE_CBC) == 0) {
+            info->evp_cipher = EVP_bf_cbc();
+        } else if (std::strcmp(reinterpret_cast<const char *>(mode), MODE_CFB) == 0) {
+            info->evp_cipher = EVP_bf_cfb();
+        } else if (std::strcmp(reinterpret_cast<const char *>(mode), MODE_ECB) == 0) {
+            info->evp_cipher = EVP_bf_ecb();
+        } else if (std::strcmp(reinterpret_cast<const char *>(mode), MODE_OFB) == 0) {
+            info->evp_cipher = EVP_bf_ofb();
+        }
+    } else if (std::strcmp(reinterpret_cast<const char *>(algorithm), ALGO_CAMELLIA) == 0) {
+        info->key_len_bytes = 32;
+        info->evp_md = EVP_sha1();
+        if (std::strcmp(reinterpret_cast<const char *>(mode), MODE_CBC) == 0) {
+            info->evp_cipher = EVP_camellia_256_cbc();
+        } else if (std::strcmp(reinterpret_cast<const char *>(mode), MODE_CFB) == 0) {
+            info->evp_cipher = EVP_camellia_256_cfb();
+        } else if (std::strcmp(reinterpret_cast<const char *>(mode), MODE_ECB) == 0) {
+            info->evp_cipher = EVP_camellia_256_ecb();
+        } else if (std::strcmp(reinterpret_cast<const char *>(mode), MODE_OFB) == 0) {
+            info->evp_cipher = EVP_camellia_256_ofb();
+        }
+    } else if (std::strcmp(reinterpret_cast<const char *>(algorithm), ALGO_TRIPLE_DES) == 0) {
+        info->key_len_bytes = 32;
+        info->evp_md = EVP_sha1();
+        if (std::strcmp(reinterpret_cast<const char *>(mode), MODE_CBC) == 0) {
+            info->evp_cipher = EVP_des_ede3_cbc();
+        } else if (std::strcmp(reinterpret_cast<const char *>(mode), MODE_CFB) == 0) {
+            info->evp_cipher = EVP_des_ede3_cfb();
+        } else if (std::strcmp(reinterpret_cast<const char *>(mode), MODE_ECB) == 0) {
+            info->evp_cipher = EVP_des_ede3_ecb();
+        } else if (std::strcmp(reinterpret_cast<const char *>(mode), MODE_OFB) == 0) {
+            info->evp_cipher = EVP_des_ede3_ofb();
+        }
+    }
+
+    if (info->evp_cipher == nullptr) {
+        __android_log_print(ANDROID_LOG_ERROR, APPNAME, "Unknown Algorithm/Mode pair");
+        return RESULT_ERROR;
+    }
+
+    return RESULT_SUCCESS;
+}
+
+EVP_CIPHER_CTX *get_encryption_ctx(
+        const unsigned char *algorithm,
+        const unsigned char *mode,
+        const unsigned char *key_data,
+        CipherInfo cipherInfo
+) {
+    __android_log_print(ANDROID_LOG_VERBOSE, APPNAME, "Initializing OpenSSL encryption...");
+    EVP_CIPHER_CTX *encryptionCtx;
+    if (!(encryptionCtx = EVP_CIPHER_CTX_new())) {
+        __android_log_print(ANDROID_LOG_ERROR, APPNAME,
+                            "Cannot init OpenSSL, Encryption context is null");
+        return nullptr;
+    } else {
+        std::vector<unsigned char> key(cipherInfo.key_len_bytes);
+        std::vector<unsigned char> iv(cipherInfo.key_len_bytes);
+        if (get_cipher_info(algorithm, mode, &cipherInfo) == 0) {
+            int generated_key_len = EVP_BytesToKey(cipherInfo.evp_cipher, cipherInfo.evp_md,
+                                                   nullptr, key_data,
+                                                   cipherInfo.key_len_bytes, 10, key.data(),
+                                                   iv.data());
+
+            if (generated_key_len != cipherInfo.key_len_bytes) {
+                __android_log_print(ANDROID_LOG_ERROR, APPNAME,
+                                    "Cannot init OpenSSL, Generated key is not of the correct length, generated size: %i, correct size: %i",
+                                    generated_key_len, cipherInfo.key_len_bytes);
+                return nullptr;
+            } else {
+                EVP_CIPHER_CTX_init(encryptionCtx);
+                EVP_EncryptInit_ex(encryptionCtx, cipherInfo.evp_cipher, NULL, key.data(),
+                                   iv.data());
+                __android_log_print(ANDROID_LOG_DEBUG, APPNAME,
+                                    "Encryption context is initialized");
+                return encryptionCtx;
+            }
+        } else {
+            return nullptr;
+        }
+    }
+}
+
+const char *load_java_str(
+        jstring str,
+        JNIEnv *env
+) {
+    jboolean isStrCopy;
+    const char *convertedCharArr = (env)->GetStringUTFChars(
+            str,
+            &isStrCopy
+    );
+    if (isStrCopy == JNI_TRUE) {
+        return convertedCharArr;
+    } else {
+        return nullptr;
+    }
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_example_fileencryptor_encryptionlib_NativeLib_encrypt(JNIEnv *env, jobject thiz,
+                                                               jstring algo, jstring mode,
+                                                               jstring key, jstring in_file_path,
+                                                               jstring out_file_path,
+                                                               jint input_file_descriptor) {
+    const char *algo_converted = load_java_str(algo, env);
+    const char *mode_converted = load_java_str(mode, env);
+    const char *key_converted = load_java_str(key, env);
+    const char *in_file_path_converted = load_java_str(in_file_path, env);
+    const char *out_file_path_converted = load_java_str(out_file_path, env);
+
+//    read(input_file_descriptor)
+
+    CipherInfo cipherInfo = CipherInfo();
+    get_cipher_info(
+            reinterpret_cast<const unsigned char *>(algo_converted),
+            reinterpret_cast<const unsigned char *>(mode_converted),
+            &cipherInfo
+    );
+
+    EVP_CIPHER_CTX *ctx = get_encryption_ctx(
+            reinterpret_cast<const unsigned char *>(algo_converted),
+            reinterpret_cast<const unsigned char *>(mode_converted),
+            reinterpret_cast<const unsigned char *>(key_converted),
+            cipherInfo
+    );
+
+    if (ctx != nullptr) {
+        std::ifstream input_file;
+        std::ofstream output_file;
+
+        if (!open_input_file(input_file, in_file_path_converted) ||
+            !open_output_file(output_file, out_file_path_converted)) {
+            return RESULT_ERROR;
+        }
+
+        int buffer_size = 64;
+        input_file.seekg(0, std::ios::beg);
+
+        int bytesRead, bytesWritten;
+
+        unsigned char in_buf[buffer_size], out_buf[buffer_size + cipherInfo.cipher_block_size];
+
+        while ((bytesRead = input_file.read(reinterpret_cast<char *>(in_buf),
+                                            buffer_size).gcount()) > 0) {
+            if (!EVP_EncryptUpdate(ctx, out_buf, &bytesWritten, in_buf,
+                                   bytesRead)) {
+                EVP_CIPHER_CTX_cleanup(ctx);
+                return RESULT_ERROR;
+            }
+            output_file.write(reinterpret_cast<const char *>(out_buf), bytesWritten);
+        }
+
+        EVP_CIPHER_CTX_cleanup(ctx);
+
+        env->ReleaseStringUTFChars(algo, algo_converted);
+        env->ReleaseStringUTFChars(mode, mode_converted);
+        env->ReleaseStringUTFChars(key, key_converted);
+        env->ReleaseStringUTFChars(in_file_path, in_file_path_converted);
+        env->ReleaseStringUTFChars(out_file_path, out_file_path_converted);
+
+        return RESULT_SUCCESS;
+    }
+
+    return RESULT_ERROR;
+
+}
