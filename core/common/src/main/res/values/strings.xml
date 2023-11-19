@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="retry">Retry</string>
+    <string name="error_message">Error</string>
+    <string name="select_file_message">Please select a file</string>
+    <string name="select_file_button_text">Select file</string>
+    <string name="select_dir_button_text">Select Directory</string>
+    <string name="browse">Browse</string>
+    <string name="no_file_selected">No file is selected</string>
+    <string name="screen_title_decrypt">Decrypt</string>
+    <string name="app_name">encrypt</string>
+    <string name="algo_aes">AES</string>
+    <string name="input_label_algorithm">Algorithm</string>
+    <string name="input_label_mode">Mode</string>
+    <string name="input_label_password">Password</string>
+    <string name="screen_title_encrypt">Encrypt</string>
+    <string name="encrypt_confirm_btn">Encrypt</string>
+    <string name="error_message_file_not_selected">Please select a file</string>
+    <string name="error_message_algo_not_selected">Please select the encryption algorithm</string>
+    <string name="error_message_mode_not_selected">Please select encryption mode</string>
+    <string name="error_message_password_not_selected">Please select a password</string>
+    <string name="error_message_output_dir_not_selected">Please select output directory</string>
+    <string name="encryption_failed">Failed to encrypt file</string>
+    <string name="encryption_success">File encryption success</string>
+    <string name="aes">AES</string>
+    <string name="camellia">Camellia</string>
+    <string name="blowfish">Blowfish</string>
+    <string name="cbc">CBC</string>
+    <string name="cfb">CFB</string>
+    <string name="ecb">ECB</string>
+    <string name="ofb">OFB</string>
+    <string name="empty_string"/>
+    <string name="decrypt_confirm_btn">Decrypt</string>
+</resources>

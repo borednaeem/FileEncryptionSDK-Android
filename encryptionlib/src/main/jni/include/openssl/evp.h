@@ -838,7 +838,7 @@ const EVP_CIPHER *EVP_aes_192_wrap_pad(void);
 const EVP_CIPHER *EVP_aes_192_ocb(void);
 # endif
 const EVP_CIPHER *EVP_aes_256_ecb(void);
-const EVP_CIPHER *EVP_aes_256_cbc(void);
+EVP_CIPHER * EVP_aes_256_cbc(void);
 const EVP_CIPHER *EVP_aes_256_cfb1(void);
 const EVP_CIPHER *EVP_aes_256_cfb8(void);
 const EVP_CIPHER *EVP_aes_256_cfb128(void);

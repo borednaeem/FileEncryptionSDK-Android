@@ -300,10 +300,10 @@ BLOCK_CIPHER_def_ecb(cname, kstruct, nid, block_size, key_len, flags, \
 
 /*-
 #define BLOCK_CIPHER_defs(cname, kstruct, \
-                                nid, block_size, key_len, iv_len, flags,\
+                                nid, block_size, key_len_bytes, iv_len, flags,\
                                  init_key, cleanup, set_asn1, get_asn1, ctrl)\
 static const EVP_CIPHER cname##_cbc = {\
-        nid##_cbc, block_size, key_len, iv_len, \
+        nid##_cbc, block_size, key_len_bytes, iv_len, \
         flags | EVP_CIPH_CBC_MODE,\
         init_key,\
         cname##_cbc_cipher,\
@@ -316,7 +316,7 @@ static const EVP_CIPHER cname##_cbc = {\
 };\
 const EVP_CIPHER *EVP_##cname##_cbc(void) { return &cname##_cbc; }\
 static const EVP_CIPHER cname##_cfb = {\
-        nid##_cfb64, 1, key_len, iv_len, \
+        nid##_cfb64, 1, key_len_bytes, iv_len, \
         flags | EVP_CIPH_CFB_MODE,\
         init_key,\
         cname##_cfb_cipher,\
@@ -329,7 +329,7 @@ static const EVP_CIPHER cname##_cfb = {\
 };\
 const EVP_CIPHER *EVP_##cname##_cfb(void) { return &cname##_cfb; }\
 static const EVP_CIPHER cname##_ofb = {\
-        nid##_ofb64, 1, key_len, iv_len, \
+        nid##_ofb64, 1, key_len_bytes, iv_len, \
         flags | EVP_CIPH_OFB_MODE,\
         init_key,\
         cname##_ofb_cipher,\
@@ -342,7 +342,7 @@ static const EVP_CIPHER cname##_ofb = {\
 };\
 const EVP_CIPHER *EVP_##cname##_ofb(void) { return &cname##_ofb; }\
 static const EVP_CIPHER cname##_ecb = {\
-        nid##_ecb, block_size, key_len, iv_len, \
+        nid##_ecb, block_size, key_len_bytes, iv_len, \
         flags | EVP_CIPH_ECB_MODE,\
         init_key,\
         cname##_ecb_cipher,\

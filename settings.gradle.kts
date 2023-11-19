@@ -6,6 +6,7 @@ pluginManagement {
     }
 }
 dependencyResolutionManagement {
+    includeBuild("custom-build-plugins")
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
@@ -16,5 +17,9 @@ dependencyResolutionManagement {
 rootProject.name = "FileEncryptor"
 include(":app")
 include(":encryptionlib")
-include(":core")
-include(":feature")
+include(":feature:encrypt")
+include(":core:common")
+include(":core:domain")
+include(":EasyLogging")
+include(":feature:decrypt")
+include(":feature:home")

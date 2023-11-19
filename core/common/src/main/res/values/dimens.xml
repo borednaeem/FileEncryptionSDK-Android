@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="main_weather_icon_size">80dp</dimen>
+    <dimen name="main_weather_text_size">48sp</dimen>
+    <dimen name="small_icon_size">18dp</dimen>
+    <dimen name="normal_icon_size">24dp</dimen>
+    <dimen name="search_card_bottom_radius">24dp</dimen>
+    <dimen name="small_space">8dp</dimen>
+    <dimen name="medium_space">16dp</dimen>
+    <dimen name="large_space">24dp</dimen>
+    <dimen name="extra_small_space">4dp</dimen>
+    <dimen name="large_padding">24dp</dimen>
+    <dimen name="medium_padding">16dp</dimen>
+</resources>

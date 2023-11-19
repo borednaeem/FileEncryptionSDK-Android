@@ -12,6 +12,7 @@
 #include <android/file_descriptor_jni.h>
 #include "unistd.h"
 #include "filesystem"
+#include "iostream"
 
 #define APPNAME "FileEncryptor"
 
@@ -112,7 +113,8 @@ int open_input_file(std::ifstream &file, const std::string &file_path) {
     __android_log_print(ANDROID_LOG_VERBOSE, APPNAME, "Opening file to encrypt...");
     file = std::ifstream(file_path);
     if (!file.is_open()) {
-        __android_log_print(ANDROID_LOG_ERROR, APPNAME, "Could not open file with path: %s", file_path.c_str());
+        __android_log_print(ANDROID_LOG_ERROR, APPNAME, "Could not open file with path: %s",
+                            file_path.c_str());
         return RESULT_ERROR;
     } else {
         __android_log_print(ANDROID_LOG_DEBUG, APPNAME, "File is opened");
@@ -243,6 +245,46 @@ EVP_CIPHER_CTX *get_encryption_ctx(
     }
 }
 
+EVP_CIPHER_CTX *get_decryption_ctx(
+        const unsigned char *algorithm,
+        const unsigned char *mode,
+        const unsigned char *key_data,
+        CipherInfo cipherInfo
+) {
+    __android_log_print(ANDROID_LOG_VERBOSE, APPNAME, "Initializing OpenSSL encryption...");
+    EVP_CIPHER_CTX *decryptionCtx;
+    if (!(decryptionCtx = EVP_CIPHER_CTX_new())) {
+        __android_log_print(ANDROID_LOG_ERROR, APPNAME,
+                            "Cannot init OpenSSL, Decryption context is null");
+        return nullptr;
+    } else {
+        std::vector<unsigned char> key(cipherInfo.key_len_bytes);
+        std::vector<unsigned char> iv(cipherInfo.key_len_bytes);
+        if (get_cipher_info(algorithm, mode, &cipherInfo) == 0) {
+            int generated_key_len = EVP_BytesToKey(cipherInfo.evp_cipher, cipherInfo.evp_md,
+                                                   nullptr, key_data,
+                                                   cipherInfo.key_len_bytes, 10, key.data(),
+                                                   iv.data());
+
+            if (generated_key_len != cipherInfo.key_len_bytes) {
+                __android_log_print(ANDROID_LOG_ERROR, APPNAME,
+                                    "Cannot init OpenSSL, Generated key is not of the correct length, generated size: %i, correct size: %i",
+                                    generated_key_len, cipherInfo.key_len_bytes);
+                return nullptr;
+            } else {
+                EVP_CIPHER_CTX_init(decryptionCtx);
+                EVP_DecryptInit_ex(decryptionCtx, cipherInfo.evp_cipher, NULL, key.data(),
+                                   iv.data());
+                __android_log_print(ANDROID_LOG_DEBUG, APPNAME,
+                                    "Encryption context is initialized");
+                return decryptionCtx;
+            }
+        } else {
+            return nullptr;
+        }
+    }
+}
+
 const char *load_java_str(
         jstring str,
         JNIEnv *env
@@ -259,20 +301,24 @@ const char *load_java_str(
     }
 }
 
+std::string debugArray(const unsigned char *data, size_t len) {
+    std::string s(*data, sizeof(len));
+    return s;
+}
+
 extern "C"
 JNIEXPORT jint JNICALL
 Java_com_example_fileencryptor_encryptionlib_NativeLib_encrypt(JNIEnv *env, jobject thiz,
-                                                               jstring algo, jstring mode,
-                                                               jstring key, jstring in_file_path,
-                                                               jstring out_file_path,
-                                                               jint input_file_descriptor) {
+                                                               jstring algo,
+                                                               jstring mode,
+                                                               jstring key,
+                                                               jint input_file_descriptor,
+                                                               jint output_file_descriptor) {
     const char *algo_converted = load_java_str(algo, env);
     const char *mode_converted = load_java_str(mode, env);
     const char *key_converted = load_java_str(key, env);
-    const char *in_file_path_converted = load_java_str(in_file_path, env);
-    const char *out_file_path_converted = load_java_str(out_file_path, env);
-
-//    read(input_file_descriptor)
+//    const char *in_file_path_converted = load_java_str(in_file_path, env);
+//    const char *out_file_path_converted = load_java_str(out_file_path, env);
 
     CipherInfo cipherInfo = CipherInfo();
     get_cipher_info(
@@ -292,10 +338,10 @@ Java_com_example_fileencryptor_encryptionlib_NativeLib_encrypt(JNIEnv *env, jobj
         std::ifstream input_file;
         std::ofstream output_file;
 
-        if (!open_input_file(input_file, in_file_path_converted) ||
-            !open_output_file(output_file, out_file_path_converted)) {
-            return RESULT_ERROR;
-        }
+//        if (!open_input_file(input_file, in_file_path_converted) ||
+//            !open_output_file(output_file, out_file_path_converted)) {
+//            return RESULT_ERROR;
+//        }
 
         int buffer_size = 64;
         input_file.seekg(0, std::ios::beg);
@@ -304,14 +350,28 @@ Java_com_example_fileencryptor_encryptionlib_NativeLib_encrypt(JNIEnv *env, jobj
 
         unsigned char in_buf[buffer_size], out_buf[buffer_size + cipherInfo.cipher_block_size];
 
-        while ((bytesRead = input_file.read(reinterpret_cast<char *>(in_buf),
-                                            buffer_size).gcount()) > 0) {
+        while ((bytesRead = read(input_file_descriptor, reinterpret_cast<char *>(in_buf),
+                                 buffer_size))) {
+            __android_log_print(ANDROID_LOG_DEBUG, APPNAME,
+                                "Number of read bytes: %i", bytesRead);
+
+            __android_log_print(ANDROID_LOG_DEBUG, APPNAME,
+                                "read bytes: %s", in_buf);
+            debugArray(in_buf, bytesRead);
+
             if (!EVP_EncryptUpdate(ctx, out_buf, &bytesWritten, in_buf,
                                    bytesRead)) {
                 EVP_CIPHER_CTX_cleanup(ctx);
                 return RESULT_ERROR;
             }
-            output_file.write(reinterpret_cast<const char *>(out_buf), bytesWritten);
+            __android_log_print(ANDROID_LOG_DEBUG, APPNAME,
+                                "Number of bytes to write: %i", bytesWritten);
+
+            __android_log_print(ANDROID_LOG_DEBUG, APPNAME,
+                                "bytes to write: %s", out_buf);
+            debugArray(out_buf, bytesWritten);
+            write(output_file_descriptor, out_buf, bytesWritten);
+            //output_file.write(reinterpret_cast<const char *>(out_buf), bytesWritten);
         }
 
         EVP_CIPHER_CTX_cleanup(ctx);
@@ -319,12 +379,80 @@ Java_com_example_fileencryptor_encryptionlib_NativeLib_encrypt(JNIEnv *env, jobj
         env->ReleaseStringUTFChars(algo, algo_converted);
         env->ReleaseStringUTFChars(mode, mode_converted);
         env->ReleaseStringUTFChars(key, key_converted);
-        env->ReleaseStringUTFChars(in_file_path, in_file_path_converted);
-        env->ReleaseStringUTFChars(out_file_path, out_file_path_converted);
+//        env->ReleaseStringUTFChars(in_file_path, in_file_path_converted);
+//        env->ReleaseStringUTFChars(out_file_path, out_file_path_converted);
 
         return RESULT_SUCCESS;
     }
 
     return RESULT_ERROR;
 
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_com_example_fileencryptor_encryptionlib_NativeLib_decrypt(JNIEnv *env,
+                                                               jobject thiz,
+                                                               jstring algo,
+                                                               jstring mode,
+                                                               jstring key,
+                                                               jint input_file_descriptor,
+                                                               jint output_file_descriptor) {
+    const char *algo_converted = load_java_str(algo, env);
+    const char *mode_converted = load_java_str(mode, env);
+    const char *key_converted = load_java_str(key, env);
+
+    CipherInfo cipherInfo = CipherInfo();
+    get_cipher_info(
+            reinterpret_cast<const unsigned char *>(algo_converted),
+            reinterpret_cast<const unsigned char *>(mode_converted),
+            &cipherInfo
+    );
+
+    EVP_CIPHER_CTX *ctx = get_encryption_ctx(
+            reinterpret_cast<const unsigned char *>(algo_converted),
+            reinterpret_cast<const unsigned char *>(mode_converted),
+            reinterpret_cast<const unsigned char *>(key_converted),
+            cipherInfo
+    );
+
+    if (ctx != nullptr) {
+        int buffer_size = 64;
+        int bytesRead, bytesWritten;
+
+        unsigned char in_buf[buffer_size], out_buf[buffer_size + cipherInfo.cipher_block_size];
+
+        while ((bytesRead = read(input_file_descriptor, reinterpret_cast<char *>(in_buf),
+                                 buffer_size))) {
+            __android_log_print(ANDROID_LOG_DEBUG, APPNAME,
+                                "Number of read bytes: %i", bytesRead);
+
+            __android_log_print(ANDROID_LOG_DEBUG, APPNAME,
+                                "read bytes: %s", in_buf);
+            debugArray(in_buf, bytesRead);
+
+            if (!EVP_DecryptUpdate(ctx, out_buf, &bytesWritten, in_buf,
+                                   bytesRead)) {
+                EVP_CIPHER_CTX_cleanup(ctx);
+                return RESULT_ERROR;
+            }
+            __android_log_print(ANDROID_LOG_DEBUG, APPNAME,
+                                "Number of bytes to write: %i", bytesWritten);
+
+            __android_log_print(ANDROID_LOG_DEBUG, APPNAME,
+                                "bytes to write: %s", out_buf);
+            debugArray(out_buf, bytesWritten);
+            write(output_file_descriptor, out_buf, bytesWritten);
+        }
+
+        EVP_CIPHER_CTX_cleanup(ctx);
+
+        env->ReleaseStringUTFChars(algo, algo_converted);
+        env->ReleaseStringUTFChars(mode, mode_converted);
+        env->ReleaseStringUTFChars(key, key_converted);
+
+        return RESULT_SUCCESS;
+    }
+
+    return RESULT_ERROR;
 }

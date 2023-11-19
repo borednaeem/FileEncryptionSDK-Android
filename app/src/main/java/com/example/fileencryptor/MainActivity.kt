@@ -1,35 +1,56 @@
 package com.example.fileencryptor
 
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.widget.TextView
-import com.example.fileencryptor.databinding.ActivityMainBinding
-import com.example.fileencryptor.encryptionlib.NativeLib
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.compose.rememberNavController
+import com.example.feature.encrypt.EncryptScreen
+import com.example.fileencryptor.core.common.ui.theme.FileEncryptorTheme
+import com.example.easylogging.logDebug
+import com.example.fileencryptor.feature.decrypt.DecryptScreen
+import com.example.fileencryptor.feature.home.HomeScreen
+import com.example.fileencryptor.navigation.AppNavHost
+import dagger.hilt.android.AndroidEntryPoint
 
-class MainActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityMainBinding
-
+@AndroidEntryPoint
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
-        // Example of a call to a native method
-        binding.sampleText.text = NativeLib().stringFromJNI()//stringFromJNI()
-    }
-
-/*    *//**
-     * A native method that is implemented by the 'fileencryptor' native library,
-     * which is packaged with this application.
-     *//*
-    external fun stringFromJNI(): String
-
-    companion object {
-        // Used to load the 'fileencryptor' library on application startup.
-        init {
-            System.loadLibrary("fileencryptor")
+        setContent {
+            FileEncryptorTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    val navHostController = rememberNavController()
+                    AppNavHost(navHostController = navHostController)
+                }
+            }
         }
-    }*/
+    }
+}
+
+@Composable
+fun Greeting(name: String, modifier: Modifier = Modifier) {
+    Text(
+        text = "Hello $name!",
+        modifier = modifier
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+fun GreetingPreview() {
+    FileEncryptorTheme {
+        Greeting("Android")
+    }
 }
