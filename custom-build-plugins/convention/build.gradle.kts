@@ -13,5 +13,9 @@ group = "com.example.fileencryptor.custom-build-plugins"
 
 gradlePlugin {
     plugins {
+        register("androidHilt") {
+            id = "FileEncryptor.hilt"
+            implementationClass = "AndroidHiltConventionPlugin"
+        }
     }
 }
