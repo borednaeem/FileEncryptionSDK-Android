@@ -35,4 +35,9 @@ internal fun HomeScreenRoute(
     navigateToDecryptScreen: () -> Unit,
     viewModel: HomeScreenViewModel = hiltViewModel(),
 ) {
+    HomeScreen(
+        navigateToEncryptScreen = navigateToEncryptScreen,
+        navigateToDecryptScreen = navigateToDecryptScreen,
+        viewModel = viewModel
+    )
 }
